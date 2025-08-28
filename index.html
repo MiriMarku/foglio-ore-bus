@@ -5,52 +5,114 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Foglio Ore Autisti</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0d9488">
+  <meta name="theme-color" content="#0b7e77">
   <link rel="icon" href="icon-192.png">
   <style>
-    :root { --pri:#0d9488; --bg:#f6f9fb; --card:#ffffff; --mut:#6b7280; }
+    :root {
+      --pri:#0b7e77;
+      --pri-ct:#ffffff;
+      --bg:#f3f6f8;
+      --card:#ffffff;
+      --mut:#6b7280;
+      --line:#e5e7eb;
+      --elev: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+      --rad:14px;
+    }
     * { box-sizing: border-box; }
     html, body { height:100%; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:#0f172a;}
-    header { position:sticky; top:0; background:var(--card); padding:12px; display:flex; gap:8px; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.06); z-index:10;}
-    h1 { font-size:18px; margin:0 8px 0 0; color:#0d9488; white-space:nowrap; }
-    select, input[type="number"], input[type="text"], input[type="tel"] { padding:8px; border-radius:10px; border:1px solid #e5e7eb; background:#fff; }
-    main { padding:12px; }
-    .row { background:var(--card); border-radius:14px; padding:12px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
-    .title { font-weight:600; margin-bottom:6px; }
-    .grid3 { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
-    .mut { color:#6b7280; font-size:12px; }
-    .pair { display:flex; gap:6px; align-items:center; }
-    .pair input { width:100%; }
-    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#ecfeff; color:#0e7490; font-size:12px; margin-right:6px; }
-    .footer { position:sticky; bottom:0; background:var(--card); padding:12px; box-shadow:0 -2px 8px rgba(0,0,0,.06); z-index:20; }
-    button { padding:10px 14px; border:none; border-radius:12px; background:#0d9488; color:#fff; font-weight:600; cursor:pointer; }
-    .inline { display:flex; gap:8px; flex-wrap:wrap; }
-    .note { width:100%; padding:8px; border:1px solid #e5e7eb; border-radius:10px; }
-    .summary-table { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; }
-    .summary-table .cell { background:#f0fdfa; padding:10px; border-radius:10px; text-align:center; }
+    body {
+      margin:0; background:var(--bg); color:#0f172a;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    /* Top app bar */
+    header {
+      position:sticky; top:0; z-index:20;
+      background: linear-gradient(180deg, #0b7e77 0%, #0b7e77 60%, rgba(11,126,119,.85) 100%);
+      color:var(--pri-ct);
+      padding:14px 12px 16px; box-shadow: var(--elev);
+    }
+    .appbar {display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .logo {width:28px; height:28px; border-radius:50%; background:#0a6f69; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:800;}
+    h1 { font-size:18px; margin:0 4px 0 0; }
+    .chip { background:rgba(255,255,255,.2); padding:6px 10px; border-radius:999px; }
+    .select-inline, .year-inline {
+      background:#fff; color:#0f172a; border-radius:12px; padding:4px 8px; display:inline-flex; align-items:center; gap:6px;
+    }
+    .select-inline select, .year-inline input { border:none; outline:none; font-size:14px; padding:6px; background:transparent; width:90px; color:#0f172a; }
+    .year-inline input { width:96px; }
+    main { padding:14px; max-width:1100px; margin: 0 auto; }
+
+    /* Cards */
+    .row { background:var(--card); border-radius:var(--rad); padding:14px; margin:12px 0; box-shadow: var(--elev); }
+    .title { font-weight:700; margin-bottom:10px; letter-spacing:.2px; }
+    .mut { color:var(--mut); font-size:12px; }
+
+    /* Material-like inputs (floating labels) */
+    .md-field { position:relative; display:flex; flex:1; }
+    .md-input {
+      width:100%; padding:14px 12px 12px;
+      border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; outline:none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .md-input:focus { border-color: var(--pri); box-shadow: 0 0 0 3px rgba(11,126,119,.15); }
+    .md-label {
+      position:absolute; left:12px; top:12px; color:#64748b; background:#fff; padding:0 6px;
+      transform-origin:left top; transition: transform .15s ease, color .2s ease, top .15s ease;
+      pointer-events:none;
+    }
+    .md-input:not(:placeholder-shown) + .md-label,
+    .md-input:focus + .md-label {
+      transform: scale(.85) translateY(-18px);
+      color: var(--pri);
+    }
+
+    /* Grid for time pairs */
+    .grid3 { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
+    .pair { display:flex; gap:8px; align-items:center; }
+    .pair small { color:#64748b; width:28px; text-align:center; }
+    .badge { display:inline-block; padding:6px 10px; border-radius:999px; background:#ecfeff; color:#0e7490; font-size:12px; margin-left:auto; }
+
+    /* Buttons with ripple */
+    .btn { position:relative; overflow:hidden; border:none; border-radius:12px; padding:12px 16px; font-weight:700; cursor:pointer; }
+    .btn-tonal { background:#e6f4f3; color:#0b7e77; }
+    .btn-primary { background:var(--pri); color:var(--pri-ct); }
+    .btn-danger { background:#ef4444; color:white; }
+    .btn-warning { background:#f59e0b; color:white; }
+    .ripple { position:absolute; border-radius:50%; transform:scale(0); animation: ripple .6s linear; background:rgba(255,255,255,.5); }
+    @keyframes ripple { to { transform:scale(4); opacity:0; } }
+
+    /* Summary table */
+    .summary-table { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+    .summary-table .cell { background:#f0fdfa; padding:12px; border-radius:12px; text-align:center; font-weight:600; }
+
+    .footer { position:sticky; bottom:0; background:var(--card); padding:12px; box-shadow: var(--elev); z-index:30; border-top-left-radius:12px; border-top-right-radius:12px; }
+    .inline { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
     @media (max-width:900px){ .grid3{ grid-template-columns:1fr 1fr; } .summary-table{ grid-template-columns:1fr; } }
     @media (max-width:600px){ .grid3{ grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
 <header>
-  <h1>Foglio Ore</h1>
-  <label class="mut">Mese
-    <select id="month" title="Mese"></select>
-  </label>
-  <label class="mut">Anno
-    <input type="number" id="year" style="width:100px" title="Anno"/>
-  </label>
+  <div class="appbar">
+    <div class="logo">FO</div>
+    <h1>Foglio Ore</h1>
+    <div class="select-inline"><span class="mut">Mese</span> <select id="month"></select></div>
+    <div class="year-inline"><span class="mut">Anno</span> <input type="number" id="year"/></div>
+    <span class="chip">PWA • Offline</span>
+  </div>
 </header>
 
 <main>
   <section class="row" id="headerCard">
     <div class="title">Intestazione</div>
     <div class="inline" style="width:100%">
-      <input id="nome" placeholder="Nome e cognome" style="flex:1">
+      <div class="md-field">
+        <input id="nome" class="md-input" placeholder=" ">
+        <label class="md-label" for="nome">Nome e cognome</label>
+      </div>
     </div>
-    <div class="mut" style="margin-top:6px">Tipo di documento: <b>Specchio ore di lavoro</b></div>
+    <div class="mut" style="margin-top:8px">Tipo di documento: <b>Specchio ore di lavoro</b></div>
     <div class="mut">Mansione: <b>Conducente</b></div>
     <small class="mut">Questi dati sono salvati solo sul dispositivo.</small>
   </section>
@@ -68,12 +130,12 @@
 </main>
 
 <div class="footer">
-  <div class="inline" style="justify-content:space-between; align-items:center">
-    <small class="mut">Suggerimento: premi “Aggiungi a schermata Home” per installare l’app.</small>
+  <div class="inline" style="justify-content:space-between;">
+    <small class="mut">Suggerimento: aggiungi alla schermata Home per usarla come app.</small>
     <div class="inline">
-      <button id="exportPdf" type="button" style="background:#f59e0b">Esporta PDF</button>
-      <button id="exportCsv" type="button">Esporta CSV</button>
-      <button id="clearMonth" type="button" style="background:#ef4444">Svuota mese</button>
+      <button id="exportPdf" type="button" class="btn btn-warning">Esporta PDF</button>
+      <button id="exportCsv" type="button" class="btn btn-primary">Esporta CSV</button>
+      <button id="clearMonth" type="button" class="btn btn-danger">Svuota mese</button>
     </div>
   </div>
 </div>
@@ -87,11 +149,26 @@ const months = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov
 months.forEach((m,i)=>{ const o=document.createElement('option'); o.value=String(i+1); o.textContent=m; monthSel.appendChild(o); });
 const now = new Date(); monthSel.value=String(now.getMonth()+1); yearInp.value=String(now.getFullYear());
 
-function hdrLoad(){ try{const h=JSON.parse(localStorage.getItem('header')||'{}'); nome.value=h.nome||'';}catch(e){} }
+// Ripple effect
+document.addEventListener('click', function(e){
+  const b = e.target.closest('.btn');
+  if(!b) return;
+  const r = document.createElement('span');
+  const d = Math.max(b.clientWidth, b.clientHeight);
+  r.style.width=r.style.height=d+'px';
+  const rect = b.getBoundingClientRect();
+  r.style.left = (e.clientX-rect.left - d/2)+'px';
+  r.style.top = (e.clientY-rect.top - d/2)+'px';
+  r.className='ripple';
+  b.appendChild(r);
+  r.addEventListener('animationend', ()=> r.remove());
+});
+
+function hdrLoad(){ try{const h=JSON.parse(localStorage.getItem('header')||'{}'); nome.value=h.nome||''; if(nome.value) nome.dispatchEvent(new Event('input'));}catch(e){} }
 function hdrSave(){ localStorage.setItem('header', JSON.stringify({nome:nome.value})); }
 nome.addEventListener('input', hdrSave);
 
-// time helpers: accept "hh:mm" or "hhmm"; auto-mask on input
+// time helpers with auto-mask
 function parseTime(s){
   if(!s) return null;
   const clean = s.replace(/[^\d:]/g,'');
@@ -115,46 +192,60 @@ function applyTimeMask(e){
 }
 function hoursFromPairs(pairs){ let min=0; for(const p of pairs){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } return (min/60).toFixed(2); }
 
+function mdField(id, label, type='text', extra=''){
+  return \`
+    <div class="md-field">
+      <input id="\${id}" class="md-input time" type="\${type}" placeholder=" " \${extra}>
+      <label class="md-label" for="\${id}">\${label}</label>
+    </div>\`;
+}
+
 function buildDay(y,m,d){
   const date = new Date(y,m-1,d);
   const wk = date.toLocaleDateString('it-IT',{weekday:'short'});
-  const id = `d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const id = \`d:\${y}-\${String(m).padStart(2,'0')}-\${String(d).padStart(2,'0')}\`;
   let o={};
   try{o=JSON.parse(localStorage.getItem(id)||'{}');}catch(e){}
-  if(o.meal !== undefined && o.meals === undefined){ o.meals = o.meal ? 1 : 0; } // retrocompatibilità
+  if(o.meal !== undefined && o.meals === undefined){ o.meals = o.meal ? 1 : 0; } // retro compat
+
   const sec = document.createElement('section'); sec.className='row';
-  sec.innerHTML = `
-    <div class="title">${wk} ${String(d).padStart(2,'0')}</div>
-    <div class="grid3">
-      ${Array.from({length:6}).map((_,i)=>`
-      <div class="pair">
-        <small class="mut" style="width:24px">T${i+1}</small>
-        <input class="in time" type="tel" placeholder="In hh:mm" inputmode="numeric">
-        <input class="out time" type="tel" placeholder="Out hh:mm" inputmode="numeric">
-      </div>`).join('')}
-    </div>
-    <div class="inline" style="align-items:center; gap:16px; margin-top:6px">
-      <div class="pair" style="width:120px"><small class="mut" style="width:50px">Pasti</small><input class="meals" type="number" min="0" step="1" placeholder="n°"></div>
-      <div class="pair" style="width:160px"><small class="mut" style="width:50px">Spese</small><input class="exp" type="number" step="0.01" inputmode="decimal" placeholder="€"></div>
-      <input type="text" class="note" placeholder="Note" style="flex:1">
+  sec.innerHTML = \`
+    <div class="title" style="display:flex; align-items:center; gap:8px;">
+      <span style="background:#e6f4f3;color:#0b7e77;padding:4px 10px;border-radius:999px;font-weight:700">\${wk}</span>
+      <span style="font-weight:700">\${String(d).padStart(2,'0')}</span>
       <span class="badge">Ore giorno: <span class="od">0.00</span></span>
-    </div>`;
-  const timeInputs = sec.querySelectorAll('input.time');
-  timeInputs.forEach(el=>{
-    el.addEventListener('input', applyTimeMask);
-  });
-  const inputsIn = sec.querySelectorAll('.in');
-  const inputsOut = sec.querySelectorAll('.out');
-  const meals = sec.querySelector('.meals');
-  const exp = sec.querySelector('.exp');
-  const note = sec.querySelector('.note');
+    </div>
+    <div class="grid3">
+      \${Array.from({length:6}).map((_,i)=>\`
+      <div class="pair">
+        <small>T\${i+1}</small>
+        \${mdField('in'+i, 'In (hh:mm)', 'tel', 'inputmode="numeric"')}
+        \${mdField('out'+i, 'Out (hh:mm)', 'tel', 'inputmode="numeric"')}
+      </div>\`).join('')}
+    </div>
+    <div class="inline" style="margin-top:8px; gap:12px; align-items:center">
+      <div style="width:130px">\${mdField('meals', 'Pasti (n°)', 'number', 'min="0" step="1"')}</div>
+      <div style="width:170px">\${mdField('exp', 'Spese (€)', 'number', 'step="0.01" inputmode="decimal"')}</div>
+      <div style="flex:1">\${mdField('note', 'Note')}</div>
+    </div>\`;
+
+  const timeInputs = sec.querySelectorAll('input[type="tel"]');
+  timeInputs.forEach(el=> el.addEventListener('input', applyTimeMask));
+
+  const inputsIn = Array.from({length:6}).map((_,i)=> sec.querySelector('#in'+i));
+  const inputsOut = Array.from({length:6}).map((_,i)=> sec.querySelector('#out'+i));
+  const meals = sec.querySelector('#meals');
+  const exp = sec.querySelector('#exp');
+  const note = sec.querySelector('#note');
   const od = sec.querySelector('.od');
+
   const t = o.t||[];
   inputsIn.forEach((el,i)=>{ el.value = formatToHHMM(t[i]?.[0] || ''); });
   inputsOut.forEach((el,i)=>{ el.value = formatToHHMM(t[i]?.[1] || ''); });
   meals.value = (o.meals!=null) ? String(o.meals) : '';
   exp.value = (o.exp||o.exp===0) ? String(o.exp) : '';
   note.value = o.note || '';
+
   function save(){
     const pairs = Array.from({length:6}).map((_,i)=>[inputsIn[i].value, inputsOut[i].value]);
     od.textContent = hoursFromPairs(pairs);
@@ -162,10 +253,7 @@ function buildDay(y,m,d){
     localStorage.setItem(id, JSON.stringify(data));
     totals();
   }
-  inputsIn.forEach(el=>el.addEventListener('input', save));
-  inputsOut.forEach(el=>el.addEventListener('input', save));
-  ;[meals,exp,note].forEach(el=>el.addEventListener('input', save));
-  // initial compute
+  [...inputsIn, ...inputsOut, meals, exp, note].forEach(el=> el.addEventListener('input', save));
   save();
   return sec;
 }
@@ -185,44 +273,44 @@ function totals(){
   const dim = new Date(y,m,0).getDate();
   let mealsSum=0, expSum=0, hours=0;
   for(let d=1; d<=dim; d++){
-    let o={}; try{o=JSON.parse(localStorage.getItem(`d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`)||'{}');}catch(e){}
+    let o={}; try{o=JSON.parse(localStorage.getItem(\`d:\${y}-\${String(m).padStart(2,'0')}-\${String(d).padStart(2,'0')}\`)||'{}');}catch(e){}
     mealsSum += parseInt(o.meals||0);
     expSum += (o.exp||0);
-    if(o.t){ hours += parseFloat(hoursFromPairs(o.t)); }
+    if(o.t){ hours += parseFloat((function(p){ let min=0; for(const q of p){ const a=parseTime(q[0]), b=parseTime(q[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } return (min/60).toFixed(2); })(o.t)); }
   }
-  document.getElementById('totPasti').textContent = mealsSum;
-  document.getElementById('totSpese').textContent = expSum.toFixed(2);
-  document.getElementById('totOre').textContent = hours.toFixed(2);
+  $('#totPasti').textContent = mealsSum;
+  $('#totSpese').textContent = expSum.toFixed(2);
+  $('#totOre').textContent = hours.toFixed(2);
 }
 
 monthSel.addEventListener('change', render);
 yearInp.addEventListener('change', render);
 
-document.getElementById('clearMonth').addEventListener('click', (ev)=>{
+$('#clearMonth').addEventListener('click', (ev)=>{
   ev.preventDefault();
   const y=parseInt(yearInp.value)||new Date().getFullYear();
   const m=parseInt(monthSel.value)||(new Date().getMonth()+1);
   const dim=new Date(y,m,0).getDate();
   if(!confirm('Svuotare i dati del mese corrente?')) return;
-  for(let d=1; d<=dim; d++){ localStorage.removeItem(`d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`); }
+  for(let d=1; d<=dim; d++){ localStorage.removeItem(\`d:\${y}-\${String(m).padStart(2,'0')}-\${String(d).padStart(2,'0')}\`); }
   render();
 });
 
-document.getElementById('exportCsv').addEventListener('click', (ev)=>{
+$('#exportCsv').addEventListener('click', (ev)=>{
   ev.preventDefault();
   const y=parseInt(yearInp.value)||new Date().getFullYear();
   const m=parseInt(monthSel.value)||(new Date().getMonth()+1);
   const dim=new Date(y,m,0).getDate();
   let csv='Data,Giorno,Pasti,Spese,Note,Ore\n';
   for(let d=1; d<=dim; d++){
-    const date = new Date(y,m-1,d);
-    const wk = date.toLocaleDateString('it-IT',{weekday:'short'});
-    let o={}; try{o=JSON.parse(localStorage.getItem(`d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`)||'{}');}catch(e){}
-    const hrs = o.t ? hoursFromPairs(o.t) : '0.00';
-    csv += `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y},${wk},${parseInt(o.meals||0)},${(o.exp||0)},${(o.note||'').replace(/\n/g,' ').replace(/,/g,';')},${hrs}\n`;
+    const wk = new Date(y,m-1,d).toLocaleDateString('it-IT',{weekday:'short'});
+    let o={}; try{o=JSON.parse(localStorage.getItem(\`d:\${y}-\${String(m).padStart(2,'0')}-\${String(d).padStart(2,'0')}\`)||'{}');}catch(e){}
+    let min=0; if(o.t){ for(const p of o.t){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } }
+    const ore=(min/60).toFixed(2);
+    csv += \`\${String(d).padStart(2,'0')}/\${String(m).padStart(2,'0')}/\${y},\${wk},\${parseInt(o.meals||0)},\${(o.exp||0)},\${(o.note||'').replace(/\n/g,' ').replace(/,/g,';')},\${ore}\n\`;
   }
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`foglio_ore_${y}_${m}.csv`; a.click();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=\`foglio_ore_\${y}_\${m}.csv\`; a.click();
 });
 
 function makePdf(lines){
@@ -234,41 +322,42 @@ function makePdf(lines){
   let yPos=800;
   for(const line of lines){
     const txt=line.replace(/([\\()])/g,'\\$1');
-    content+=`1 0 0 1 50 ${yPos} Tm (${txt}) Tj\n`;
+    content+=\`1 0 0 1 50 \${yPos} Tm (\${txt}) Tj\n\`;
     yPos-=14;
   }
   content+='ET';
   objs.push('3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj');
-  objs.push(`4 0 obj << /Length ${len(content)} >> stream\n${content}\nendstream endobj`);
+  objs.push(\`4 0 obj << /Length \${content.length} >> stream\n\${content}\nendstream endobj\`);
   objs.push('5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj');
-  let body=''; offsets=[];
-  for (let i=0;i<objs.length;i++){ const obj=objs[i]; offsets.push(header.length+body.length); body+=obj+'\n'; }
+  let body=''; let offsets=[];
+  for(const obj of objs){ offsets.push(header.length+body.length); body+=obj+'\n'; }
   const xrefOffset=header.length+body.length;
   let xref='xref\n0 6\n0000000000 65535 f \n';
   for(const off of offsets){ xref+=String(off).padStart(10,'0')+' 00000 n \n'; }
-  return header+body+xref+`trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return header+body+xref+\`trailer << /Size 6 /Root 1 0 R >>\nstartxref\n\${xrefOffset}\n%%EOF\`;
 }
 
-document.getElementById('exportPdf').addEventListener('click', (ev)=>{
+$('#exportPdf').addEventListener('click', (ev)=>{
   ev.preventDefault();
   const y=parseInt(yearInp.value)||new Date().getFullYear();
   const m=parseInt(monthSel.value)||(new Date().getMonth()+1);
   const dim=new Date(y,m,0).getDate();
   const lines=['Data Giorno Pasti Spese Note Ore'];
   for(let d=1; d<=dim; d++){
-    const date=new Date(y,m-1,d);
-    const wk=date.toLocaleDateString('it-IT',{weekday:'short'});
-    let o={}; try{o=JSON.parse(localStorage.getItem(`d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`)||'{}');}catch(e){}
-    const hrs=o.t ? hoursFromPairs(o.t) : '0.00';
-    lines.push(`${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y} ${wk} ${parseInt(o.meals||0)} ${(o.exp||0)} ${(o.note||'').replace(/\n/g,' ')} ${hrs}`);
+    const wk=new Date(y,m-1,d).toLocaleDateString('it-IT',{weekday:'short'});
+    let o={}; try{o=JSON.parse(localStorage.getItem(\`d:\${y}-\${String(m).padStart(2,'0')}-\${String(d).padStart(2,'0')}\`)||'{}');}catch(e){}
+    let min=0; if(o.t){ for(const p of o.t){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } }
+    const ore=(min/60).toFixed(2);
+    lines.push(\`\${String(d).padStart(2,'0')}/\${String(m).padStart(2,'0')}/\${y} \${wk} \${parseInt(o.meals||0)} \${(o.exp||0)} \${(o.note||'').replace(/\n/g,' ')} \${ore}\`);
   }
   const pdf=makePdf(lines);
   const blob=new Blob([pdf],{type:'application/pdf'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`foglio_ore_${y}_${m}.pdf`; a.click();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=\`foglio_ore_\${y}_\${m}.pdf\`; a.click();
 });
 
-hdrLoad();
-render();
+// Init
+(function init(){ nome.dispatchEvent(new Event('input')); })();
+hdrLoad(); render();
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js') ); }
 })();
 </script>
