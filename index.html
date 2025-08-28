@@ -7,13 +7,13 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0d9488">
   <link rel="icon" href="icon-192.png">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root { --pri:#0d9488; --bg:#f6f9fb; --card:#ffffff; --mut:#6b7280; }
     * { box-sizing: border-box; }
     html, body { height:100%; }
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:#0f172a;}
-    header { position:sticky; top:0; background:var(--card); padding:12px; display:flex; gap:8px; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.06); z-index:10;}
+    header { position:sticky; top:0; background:var(--card); padding:12px; display:flex; gap:8px; align-items:center; box-shadow
+:0 2px 8px rgba(0,0,0,.06); z-index:10;}
     h1 { font-size:18px; margin:0 8px 0 0; color:var(--pri); white-space:nowrap; }
     select, input[type="number"], input[type="text"] { padding:8px; border-radius:10px; border:1px solid #e5e7eb; background:#fff; }
     main { padding:12px; }
@@ -33,7 +33,21 @@
     @media (max-width:900px){ .grid3{ grid-template-columns:1fr 1fr; } .summary-table{ grid-template-columns:1fr; } }
     @media (max-width:600px){ .grid3{ grid-template-columns:1fr; } }
   </style>
-@@ -50,50 +51,51 @@
+</head>
+<body>
+<header>
+  <h1>Foglio Ore</h1>
+  <label class="mut">Mese
+    <select id="month" title="Mese"></select>
+  </label>
+  <label class="mut">Anno
+    <input type="number" id="year" style="width:100px" title="Anno"/>
+  </label>
+</header>
+
+<main>
+  <section class="row" id="headerCard">
+    <div class="title">Intestazione</div>
     <div class="inline" style="width:100%">
       <input id="nome" placeholder="Nome e cognome" style="flex:1">
     </div>
@@ -58,8 +72,8 @@
   <div class="inline" style="justify-content:space-between; align-items:center">
     <small class="mut">Suggerimento: premi “Aggiungi a schermata Home” per installare l’app.</small>
     <div class="inline">
+      <button id="exportPdf" type="button" style="background:#f59e0b">Esporta PDF</button>
       <button id="exportCsv" type="button">Esporta CSV</button>
-      <button id="exportPdf" type="button">Esporta PDF</button>
       <button id="clearMonth" type="button" style="background:#ef4444">Svuota mese</button>
     </div>
   </div>
@@ -85,7 +99,84 @@ function hoursFromPairs(pairs){ let min=0; for(const p of pairs){ const a=parseT
 function buildDay(y,m,d){
   const date = new Date(y,m-1,d);
   const wk = date.toLocaleDateString('it-IT',{weekday:'short'});
-@@ -177,32 +179,60 @@ document.getElementById('clearMonth').addEventListener('click', (ev)=>{
+  const id = k(y,m,d);
+  let o={};
+  try{o=JSON.parse(localStorage.getItem(id)||'{}');}catch(e){}
+  if(o.meal !== undefined && o.meals === undefined){ o.meals = o.meal ? 1 : 0; } // retrocompatibilità
+  const sec = document.createElement('section'); sec.className='row';
+  sec.innerHTML = `
+    <div class="title">${wk} ${String(d).padStart(2,'0')}</div>
+    <div class="grid3">
+      ${Array.from({length:6}).map((_,i)=>`
+      <div class="pair">
+        <small class="mut" style="width:24px">T${i+1}</small>
+        <input class="in" placeholder="In hh:mm" inputmode="numeric">
+        <input class="out" placeholder="Out hh:mm" inputmode="numeric">
+      </div>`).join('')}
+    </div>
+    <div class="inline" style="margin-top:6px">
+      <input class="meals" placeholder="Pasti" style="width:60px" inputmode="numeric">
+      <input class="exp" placeholder="Spese €" style="width:100px" inputmode="numeric">
+    </div>
+    <textarea class="note" placeholder="Note"></textarea>
+    <span class="badge">Ore giorno: <span class="od">0.00</span></span>
+  `;
+  const inputsIn = sec.querySelectorAll('.in');
+  const inputsOut = sec.querySelectorAll('.out');
+  const meals = sec.querySelector('.meals');
+  const exp = sec.querySelector('.exp');
+  const note = sec.querySelector('.note');
+  const od = sec.querySelector('.od');
+  const t = o.t||[];
+  inputsIn.forEach((el,i)=>{ el.value = t[i]?.[0] || ''; });
+  inputsOut.forEach((el,i)=>{ el.value = t[i]?.[1] || ''; });
+  meals.value = (o.meals!=null) ? String(o.meals) : '';
+  exp.value = (o.exp||o.exp===0) ? String(o.exp) : '';
+  note.value = o.note || '';
+  function save(){
+    const pairs = Array.from({length:6}).map((_,i)=>[inputsIn[i].value, inputsOut[i].value]);
+    od.textContent = hoursFromPairs(pairs);
+    const data = { t:pairs, meals: parseInt(meals.value||'0'), exp: parseFloat((exp.value||'').replace(',','.'))||0, note: note.value };
+    localStorage.setItem(id, JSON.stringify(data));
+    totals();
+  }
+  inputsIn.forEach(el=>el.addEventListener('input', save));
+  inputsOut.forEach(el=>el.addEventListener('input', save));
+  ;[meals,exp,note].forEach(el=>el.addEventListener('input', save));
+  save();
+  return sec;
+}
+
+function render(){
+  const y = parseInt(yearInp.value) || now.getFullYear();
+  const m = parseInt(monthSel.value) || (now.getMonth()+1);
+  daysWrap.innerHTML='';
+  const dim = new Date(y, m, 0).getDate();
+  for(let d=1; d<=dim; d++){ daysWrap.appendChild(buildDay(y,m,d)); }
+  totals();
+}
+
+function totals(){
+  const y = parseInt(yearInp.value) || now.getFullYear();
+  const m = parseInt(monthSel.value) || (now.getMonth()+1);
+  const dim = new Date(y,m,0).getDate();
+  let mealsSum=0, expSum=0, hours=0;
+  for(let d=1; d<=dim; d++){
+    let o={}; try{o=JSON.parse(localStorage.getItem(k(y,m,d))||'{}');}catch(e){}
+    mealsSum += parseInt(o.meals||0);
+    expSum += (o.exp||0);
+    if(o.t){ hours += parseFloat(hoursFromPairs(o.t)); }
+  }
+  document.getElementById('totPasti').textContent = mealsSum;
+  document.getElementById('totSpese').textContent = expSum.toFixed(2);
+  document.getElementById('totOre').textContent = hours.toFixed(2);
+}
+
+monthSel.addEventListener('change', render);
+yearInp.addEventListener('change', render);
+
+document.getElementById('clearMonth').addEventListener('click', (ev)=>{
+  ev.preventDefault();
   const y=parseInt(yearInp.value)||now.getFullYear();
   const m=parseInt(monthSel.value)||(now.getMonth()+1);
   const dim=new Date(y,m,0).getDate();
@@ -111,32 +202,46 @@ document.getElementById('exportCsv').addEventListener('click', (ev)=>{
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`foglio_ore_${y}_${m}.csv`; a.click();
 });
 
+function makePdf(lines){
+  const header='%PDF-1.3\n';
+  let body='';
+  const offsets=[];
+  const addObj=str=>{ offsets.push(header.length+body.length); body+=str+'\n'; };
+  addObj('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj');
+  addObj('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj');
+  let content='BT\n/F1 12 Tf\n';
+  let yPos=800;
+  for(const line of lines){
+    const txt=line.replace(/([\\()])/g,'\\$1');
+    content+=`1 0 0 1 50 ${yPos} Tm (${txt}) Tj\n`;
+    yPos-=14;
+  }
+  content+='ET';
+  addObj(`3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj`);
+  addObj(`4 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`);
+  addObj('5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj');
+  const xrefOffset=header.length+body.length;
+  let xref='xref\n0 6\n0000000000 65535 f \n';
+  offsets.forEach(off=>{ xref+=String(off).padStart(10,'0')+' 00000 n \n'; });
+  return header+body+xref+`trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+}
+
 document.getElementById('exportPdf').addEventListener('click', (ev)=>{
   ev.preventDefault();
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
   const y=parseInt(yearInp.value)||now.getFullYear();
   const m=parseInt(monthSel.value)||(now.getMonth()+1);
   const dim=new Date(y,m,0).getDate();
-  doc.setFontSize(16);
-  doc.text(`Foglio ore ${months[m-1]} ${y}`,10,10);
-  let yPos=20;
-  doc.setFontSize(10);
-  function addLine(line){
-    if(yPos>280){ doc.addPage(); yPos=10; }
-    doc.text(line,10,yPos);
-    yPos+=6;
-  }
-  addLine('Data Giorno Pasti Spese Note Ore');
+  const lines=['Data Giorno Pasti Spese Note Ore'];
   for(let d=1; d<=dim; d++){
-    const date = new Date(y,m-1,d);
-    const wk = date.toLocaleDateString('it-IT',{weekday:'short'});
+    const date=new Date(y,m-1,d);
+    const wk=date.toLocaleDateString('it-IT',{weekday:'short'});
     let o={}; try{o=JSON.parse(localStorage.getItem(k(y,m,d))||'{}');}catch(e){}
-    const hrs = o.t ? hoursFromPairs(o.t) : '0.00';
-    const line=`${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y} ${wk} ${parseInt(o.meals||0)} ${(o.exp||0).toFixed(2)} ${(o.note||'').replace(/\n/g,' ')} ${hrs}`;
-    addLine(line);
+    const hrs=o.t ? hoursFromPairs(o.t) : '0.00';
+    lines.push(`${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y} ${wk} ${parseInt(o.meals||0)} ${(o.exp||0)} ${(o.note||'').replace(/\n/g,' ')} ${hrs}`);
   }
-  doc.save(`foglio_ore_${y}_${m}.pdf`);
+  const pdf=makePdf(lines);
+  const blob=new Blob([pdf],{type:'application/pdf'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`foglio_ore_${y}_${m}.pdf`; a.click();
 });
 
 hdrLoad();
