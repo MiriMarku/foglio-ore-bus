@@ -12,20 +12,19 @@
     * { box-sizing: border-box; }
     html, body { height:100%; }
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:#0f172a;}
-    header { position:sticky; top:0; background:var(--card); padding:12px; display:flex; gap:8px; align-items:center; box-shadow
-:0 2px 8px rgba(0,0,0,.06); z-index:10;}
-    h1 { font-size:18px; margin:0 8px 0 0; color:var(--pri); white-space:nowrap; }
-    select, input[type="number"], input[type="text"] { padding:8px; border-radius:10px; border:1px solid #e5e7eb; background:#fff; }
+    header { position:sticky; top:0; background:var(--card); padding:12px; display:flex; gap:8px; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.06); z-index:10;}
+    h1 { font-size:18px; margin:0 8px 0 0; color:#0d9488; white-space:nowrap; }
+    select, input[type="number"], input[type="text"], input[type="tel"] { padding:8px; border-radius:10px; border:1px solid #e5e7eb; background:#fff; }
     main { padding:12px; }
     .row { background:var(--card); border-radius:14px; padding:12px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
     .title { font-weight:600; margin-bottom:6px; }
     .grid3 { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
-    .mut { color:var(--mut); font-size:12px; }
+    .mut { color:#6b7280; font-size:12px; }
     .pair { display:flex; gap:6px; align-items:center; }
     .pair input { width:100%; }
     .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#ecfeff; color:#0e7490; font-size:12px; margin-right:6px; }
     .footer { position:sticky; bottom:0; background:var(--card); padding:12px; box-shadow:0 -2px 8px rgba(0,0,0,.06); z-index:20; }
-    button { padding:10px 14px; border:none; border-radius:12px; background:var(--pri); color:#fff; font-weight:600; cursor:pointer; }
+    button { padding:10px 14px; border:none; border-radius:12px; background:#0d9488; color:#fff; font-weight:600; cursor:pointer; }
     .inline { display:flex; gap:8px; flex-wrap:wrap; }
     .note { width:100%; padding:8px; border:1px solid #e5e7eb; border-radius:10px; }
     .summary-table { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; }
@@ -92,14 +91,34 @@ function hdrLoad(){ try{const h=JSON.parse(localStorage.getItem('header')||'{}')
 function hdrSave(){ localStorage.setItem('header', JSON.stringify({nome:nome.value})); }
 nome.addEventListener('input', hdrSave);
 
-function k(y,m,d){ return `d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
-function parseTime(s){ if(!s) return null; const m=/^(\d?\d):(\d\d)$/.exec(s.trim()); if(!m) return null; const h=+m[1], mi=+m[2]; if(h>23||mi>59) return null; return h*60+mi; }
+// time helpers: accept "hh:mm" or "hhmm"; auto-mask on input
+function parseTime(s){
+  if(!s) return null;
+  const clean = s.replace(/[^\d:]/g,'');
+  const m = /^(\d{1,2}):?(\d{2})$/.exec(clean);
+  if(!m) return null;
+  const h = +m[1], mi = +m[2];
+  if(h>23 || mi>59) return null;
+  return h*60+mi;
+}
+function formatToHHMM(s){
+  let v = (s||'').replace(/\D/g,'');
+  if(v.length>4) v = v.slice(0,4);
+  if(v.length>=3) return v.slice(0,2).padStart(2,'0')+':'+v.slice(2).padEnd(2,'0').slice(0,2);
+  if(v.length>=1) return v;
+  return '';
+}
+function applyTimeMask(e){
+  const before = e.target.value;
+  const after = formatToHHMM(before);
+  if(before !== after) e.target.value = after;
+}
 function hoursFromPairs(pairs){ let min=0; for(const p of pairs){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } return (min/60).toFixed(2); }
 
 function buildDay(y,m,d){
   const date = new Date(y,m-1,d);
   const wk = date.toLocaleDateString('it-IT',{weekday:'short'});
-  const id = k(y,m,d);
+  const id = `d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   let o={};
   try{o=JSON.parse(localStorage.getItem(id)||'{}');}catch(e){}
   if(o.meal !== undefined && o.meals === undefined){ o.meals = o.meal ? 1 : 0; } // retrocompatibilità
@@ -110,17 +129,20 @@ function buildDay(y,m,d){
       ${Array.from({length:6}).map((_,i)=>`
       <div class="pair">
         <small class="mut" style="width:24px">T${i+1}</small>
-        <input class="in" placeholder="In hh:mm" inputmode="numeric">
-        <input class="out" placeholder="Out hh:mm" inputmode="numeric">
+        <input class="in time" type="tel" placeholder="In hh:mm" inputmode="numeric">
+        <input class="out time" type="tel" placeholder="Out hh:mm" inputmode="numeric">
       </div>`).join('')}
     </div>
-    <div class="inline" style="margin-top:6px">
-      <input class="meals" placeholder="Pasti" style="width:60px" inputmode="numeric">
-      <input class="exp" placeholder="Spese €" style="width:100px" inputmode="numeric">
-    </div>
-    <textarea class="note" placeholder="Note"></textarea>
-    <span class="badge">Ore giorno: <span class="od">0.00</span></span>
-  `;
+    <div class="inline" style="align-items:center; gap:16px; margin-top:6px">
+      <div class="pair" style="width:120px"><small class="mut" style="width:50px">Pasti</small><input class="meals" type="number" min="0" step="1" placeholder="n°"></div>
+      <div class="pair" style="width:160px"><small class="mut" style="width:50px">Spese</small><input class="exp" type="number" step="0.01" inputmode="decimal" placeholder="€"></div>
+      <input type="text" class="note" placeholder="Note" style="flex:1">
+      <span class="badge">Ore giorno: <span class="od">0.00</span></span>
+    </div>`;
+  const timeInputs = sec.querySelectorAll('input.time');
+  timeInputs.forEach(el=>{
+    el.addEventListener('input', applyTimeMask);
+  });
   const inputsIn = sec.querySelectorAll('.in');
   const inputsOut = sec.querySelectorAll('.out');
   const meals = sec.querySelector('.meals');
@@ -128,8 +150,8 @@ function buildDay(y,m,d){
   const note = sec.querySelector('.note');
   const od = sec.querySelector('.od');
   const t = o.t||[];
-  inputsIn.forEach((el,i)=>{ el.value = t[i]?.[0] || ''; });
-  inputsOut.forEach((el,i)=>{ el.value = t[i]?.[1] || ''; });
+  inputsIn.forEach((el,i)=>{ el.value = formatToHHMM(t[i]?.[0] || ''); });
+  inputsOut.forEach((el,i)=>{ el.value = formatToHHMM(t[i]?.[1] || ''); });
   meals.value = (o.meals!=null) ? String(o.meals) : '';
   exp.value = (o.exp||o.exp===0) ? String(o.exp) : '';
   note.value = o.note || '';
@@ -143,13 +165,14 @@ function buildDay(y,m,d){
   inputsIn.forEach(el=>el.addEventListener('input', save));
   inputsOut.forEach(el=>el.addEventListener('input', save));
   ;[meals,exp,note].forEach(el=>el.addEventListener('input', save));
+  // initial compute
   save();
   return sec;
 }
 
 function render(){
-  const y = parseInt(yearInp.value) || now.getFullYear();
-  const m = parseInt(monthSel.value) || (now.getMonth()+1);
+  const y = parseInt(yearInp.value) || new Date().getFullYear();
+  const m = parseInt(monthSel.value) || (new Date().getMonth()+1);
   daysWrap.innerHTML='';
   const dim = new Date(y, m, 0).getDate();
   for(let d=1; d<=dim; d++){ daysWrap.appendChild(buildDay(y,m,d)); }
@@ -157,12 +180,12 @@ function render(){
 }
 
 function totals(){
-  const y = parseInt(yearInp.value) || now.getFullYear();
-  const m = parseInt(monthSel.value) || (now.getMonth()+1);
+  const y = parseInt(yearInp.value) || new Date().getFullYear();
+  const m = parseInt(monthSel.value) || (new Date().getMonth()+1);
   const dim = new Date(y,m,0).getDate();
   let mealsSum=0, expSum=0, hours=0;
   for(let d=1; d<=dim; d++){
-    let o={}; try{o=JSON.parse(localStorage.getItem(k(y,m,d))||'{}');}catch(e){}
+    let o={}; try{o=JSON.parse(localStorage.getItem(`d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`)||'{}');}catch(e){}
     mealsSum += parseInt(o.meals||0);
     expSum += (o.exp||0);
     if(o.t){ hours += parseFloat(hoursFromPairs(o.t)); }
@@ -177,24 +200,24 @@ yearInp.addEventListener('change', render);
 
 document.getElementById('clearMonth').addEventListener('click', (ev)=>{
   ev.preventDefault();
-  const y=parseInt(yearInp.value)||now.getFullYear();
-  const m=parseInt(monthSel.value)||(now.getMonth()+1);
+  const y=parseInt(yearInp.value)||new Date().getFullYear();
+  const m=parseInt(monthSel.value)||(new Date().getMonth()+1);
   const dim=new Date(y,m,0).getDate();
   if(!confirm('Svuotare i dati del mese corrente?')) return;
-  for(let d=1; d<=dim; d++){ localStorage.removeItem(k(y,m,d)); }
+  for(let d=1; d<=dim; d++){ localStorage.removeItem(`d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`); }
   render();
 });
 
 document.getElementById('exportCsv').addEventListener('click', (ev)=>{
   ev.preventDefault();
-  const y=parseInt(yearInp.value)||now.getFullYear();
-  const m=parseInt(monthSel.value)||(now.getMonth()+1);
+  const y=parseInt(yearInp.value)||new Date().getFullYear();
+  const m=parseInt(monthSel.value)||(new Date().getMonth()+1);
   const dim=new Date(y,m,0).getDate();
   let csv='Data,Giorno,Pasti,Spese,Note,Ore\n';
   for(let d=1; d<=dim; d++){
     const date = new Date(y,m-1,d);
     const wk = date.toLocaleDateString('it-IT',{weekday:'short'});
-    let o={}; try{o=JSON.parse(localStorage.getItem(k(y,m,d))||'{}');}catch(e){}
+    let o={}; try{o=JSON.parse(localStorage.getItem(`d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`)||'{}');}catch(e){}
     const hrs = o.t ? hoursFromPairs(o.t) : '0.00';
     csv += `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y},${wk},${parseInt(o.meals||0)},${(o.exp||0)},${(o.note||'').replace(/\n/g,' ').replace(/,/g,';')},${hrs}\n`;
   }
@@ -204,11 +227,9 @@ document.getElementById('exportCsv').addEventListener('click', (ev)=>{
 
 function makePdf(lines){
   const header='%PDF-1.3\n';
-  let body='';
-  const offsets=[];
-  const addObj=str=>{ offsets.push(header.length+body.length); body+=str+'\n'; };
-  addObj('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj');
-  addObj('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj');
+  const objs=[];
+  objs.push('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj');
+  objs.push('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj');
   let content='BT\n/F1 12 Tf\n';
   let yPos=800;
   for(const line of lines){
@@ -217,25 +238,27 @@ function makePdf(lines){
     yPos-=14;
   }
   content+='ET';
-  addObj(`3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj`);
-  addObj(`4 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`);
-  addObj('5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj');
+  objs.push('3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj');
+  objs.push(`4 0 obj << /Length ${len(content)} >> stream\n${content}\nendstream endobj`);
+  objs.push('5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj');
+  let body=''; offsets=[];
+  for (let i=0;i<objs.length;i++){ const obj=objs[i]; offsets.push(header.length+body.length); body+=obj+'\n'; }
   const xrefOffset=header.length+body.length;
   let xref='xref\n0 6\n0000000000 65535 f \n';
-  offsets.forEach(off=>{ xref+=String(off).padStart(10,'0')+' 00000 n \n'; });
+  for(const off of offsets){ xref+=String(off).padStart(10,'0')+' 00000 n \n'; }
   return header+body+xref+`trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
 }
 
 document.getElementById('exportPdf').addEventListener('click', (ev)=>{
   ev.preventDefault();
-  const y=parseInt(yearInp.value)||now.getFullYear();
-  const m=parseInt(monthSel.value)||(now.getMonth()+1);
+  const y=parseInt(yearInp.value)||new Date().getFullYear();
+  const m=parseInt(monthSel.value)||(new Date().getMonth()+1);
   const dim=new Date(y,m,0).getDate();
   const lines=['Data Giorno Pasti Spese Note Ore'];
   for(let d=1; d<=dim; d++){
     const date=new Date(y,m-1,d);
     const wk=date.toLocaleDateString('it-IT',{weekday:'short'});
-    let o={}; try{o=JSON.parse(localStorage.getItem(k(y,m,d))||'{}');}catch(e){}
+    let o={}; try{o=JSON.parse(localStorage.getItem(`d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`)||'{}');}catch(e){}
     const hrs=o.t ? hoursFromPairs(o.t) : '0.00';
     lines.push(`${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y} ${wk} ${parseInt(o.meals||0)} ${(o.exp||0)} ${(o.note||'').replace(/\n/g,' ')} ${hrs}`);
   }
