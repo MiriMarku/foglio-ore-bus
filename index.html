@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Foglio Ore Autisti</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0d9488">
+  <link rel="icon" href="icon-192.png">
+  <style>
+    :root { --pri:#0d9488; --bg:#f6f9fb; --card:#ffffff; --mut:#6b7280; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:#0f172a;}
+    header { position:sticky; top:0; background:var(--card); padding:12px; display:flex; gap:8px; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.06); z-index:2;}
+    h1 { font-size:18px; margin:0 8px 0 0; color:var(--pri); }
+    select, input[type="number"], input[type="text"] { padding:8px; border-radius:10px; border:1px solid #e5e7eb; background:#fff; }
+    main { padding:12px; }
+    .row { background:var(--card); border-radius:14px; padding:12px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+    .title { font-weight:600; margin-bottom:6px; }
+    .grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
+    .grid3 { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
+    .mut { color:var(--mut); font-size:12px; }
+    .pair { display:flex; gap:6px; align-items:center; }
+    .pair input { width:100%; }
+    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#ecfeff; color:#0e7490; font-size:12px; }
+    .footer { position:sticky; bottom:0; background:var(--card); padding:12px; box-shadow:0 -2px 8px rgba(0,0,0,.06); }
+    button { padding:10px 14px; border:none; border-radius:12px; background:var(--pri); color:#fff; font-weight:600; }
+    .row small { color:var(--mut); }
+    .inline { display:flex; gap:8px; flex-wrap:wrap; }
+    .input { display:flex; flex-direction:column; gap:4px; }
+    .note { width:100%; padding:8px; border:1px solid #e5e7eb; border-radius:10px; }
+    .tot { font-weight:700; }
+    .headerform { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:8px 0 6px; }
+    @media (max-width:700px){ .headerform{ grid-template-columns:1fr;} .grid3{ grid-template-columns:1fr 1fr;} }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Foglio Ore</h1>
+  <label class="mut">Mese
+    <select id="month"></select>
+  </label>
+  <label class="mut">Anno
+    <input type="number" id="year" style="width:96px"/>
+  </label>
+</header>
+
+<main>
+  <section class="row">
+    <div class="title">Intestazione</div>
+    <div class="headerform">
+      <input id="nome" placeholder="Nome">
+      <input id="documento" placeholder="Documento">
+      <input id="mansione" placeholder="Mansione" value="Conducente">
+    </div>
+    <small class="mut">Questi dati sono salvati solo sul dispositivo.</small>
+  </section>
+
+  <div id="days"></div>
+</main>
+
+<div class="footer">
+  <div class="inline" style="justify-content:space-between; align-items:center">
+    <div>
+      <span class="badge">Totale pasti: <span id="totPasti">0</span></span>
+      <span class="badge">Totale spese: € <span id="totSpese">0.00</span></span>
+      <span class="badge">Totale ore mese: <span id="totOre">0.00</span></span>
+    </div>
+    <div class="inline">
+      <button id="exportCsv">Esporta CSV</button>
+      <button id="clearMonth" style="background:#ef4444">Svuota mese</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = sel => document.querySelector(sel);
+const monthSel = $('#month'); const yearInp = $('#year');
+const daysWrap = $('#days');
+const nome = $('#nome'), doc = $('#documento'), mansione = $('#mansione');
+
+const months = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+months.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; monthSel.appendChild(o); });
+
+const today = new Date();
+monthSel.value = today.getMonth()+1;
+yearInp.value = today.getFullYear();
+
+// Persist header
+const headerKey = 'header';
+function loadHeader(){
+  try { const h = JSON.parse(localStorage.getItem(headerKey) || '{}'); nome.value=h.nome||''; doc.value=h.doc||''; mansione.value=h.mansione||'Conducente'; } catch(e){}
+}
+function saveHeader(){ localStorage.setItem(headerKey, JSON.stringify({nome:nome.value, doc:doc.value, mansione:mansione.value})); }
+[nome,doc,mansione].forEach(el=>el.addEventListener('input', saveHeader));
+
+function keyFor(y,m,d){ return `d:${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function ymKey(y,m){ return `ym:${y}-${m}`; }
+
+function parseTime(s){ if(!s) return null; const m=/^([0-2]?\d):([0-5]\d)$/.exec(s.trim()); if(!m) return null; const h=parseInt(m[1]); const min=parseInt(m[2]); if(h>23) return null; return h*60+min; }
+function decHours(min){ return (min/60).toFixed(2); }
+
+function buildDayCard(y,m,d){
+  const date = new Date(y,m-1,d);
+  const weekday = date.toLocaleDateString('it-IT',{weekday:'short'});
+  const k = keyFor(y,m,d);
+  let obj = JSON.parse(localStorage.getItem(k) || '{}');
+  const wrap = document.createElement('section'); wrap.className='row';
+  wrap.innerHTML = \`
+    <div class="title">\${weekday} \${String(d).padStart(2,'0')}</div>
+    <div class="grid3" id="pairs"></div>
+    <div class="inline" style="align-items:center; gap:16px; margin-top:6px">
+      <label><input type="checkbox" class="meal"> Pasto</label>
+      <div class="input" style="width:140px">
+        <input type="text" class="exp" placeholder="Spese (€)" inputmode="decimal">
+      </div>
+      <input type="text" class="note" placeholder="Note">
+      <span class="badge">Ore giorno: <span class="od">0.00</span></span>
+    </div>\`;
+
+  const pairsWrap = wrap.querySelector('#pairs');
+  const labels = ['T1','T2','T3','T4','T5','T6'];
+  const fields = [];
+  for(let i=0;i<6;i++){
+    const row = document.createElement('div');
+    row.className='pair';
+    row.innerHTML = \`<small class="mut">\${labels[i]}</small>
+      <input class="in" placeholder="In hh:mm" inputmode="numeric">
+      <input class="out" placeholder="Out hh:mm" inputmode="numeric">\`;
+    pairsWrap.appendChild(row);
+    fields.push({in:row.querySelector('.in'), out:row.querySelector('.out')});
+  }
+  const meal = wrap.querySelector('.meal');
+  const exp = wrap.querySelector('.exp');
+  const note = wrap.querySelector('.note');
+  const od = wrap.querySelector('.od');
+
+  // Load saved
+  if(obj.t){ obj.t.forEach((p,i)=>{ if(fields[i]){ fields[i].in.value=p[0]||''; fields[i].out.value=p[1]||''; } }); }
+  meal.checked = !!obj.meal;
+  exp.value = (obj.exp || obj.exp===0) ? String(obj.exp) : '';
+  note.value = obj.note || '';
+
+  function recalc(){
+    let minutes=0;
+    const t = [];
+    for(const f of fields){
+      const a=parseTime(f.in.value), b=parseTime(f.out.value);
+      t.push([f.in.value,f.out.value]);
+      if(a!=null && b!=null && b>a) minutes += b-a;
+    }
+    od.textContent = decHours(minutes);
+    const data = { t, meal:meal.checked, exp: parseFloat((exp.value||'').replace(',','.'))||0, note: note.value };
+    localStorage.setItem(k, JSON.stringify(data));
+    updateTotals();
+  }
+  fields.forEach(f=>{ f.in.addEventListener('input', recalc); f.out.addEventListener('input', recalc); });
+  [meal,exp,note].forEach(el=>el.addEventListener('input', recalc));
+  recalc();
+  return wrap;
+}
+
+function render(){
+  daysWrap.innerHTML='';
+  const y=parseInt(yearInp.value), m=parseInt(monthSel.value);
+  const daysInMonth = new Date(y,m,0).getDate();
+  for(let d=1; d<=daysInMonth; d++){
+    daysWrap.appendChild(buildDayCard(y,m,d));
+  }
+  localStorage.setItem(ymKey(y,m), '1');
+  updateTotals();
+}
+monthSel.addEventListener('change', render);
+yearInp.addEventListener('change', render);
+
+function updateTotals(){
+  const y=parseInt(yearInp.value), m=parseInt(monthSel.value);
+  let tp=0, ts=0, th=0;
+  const daysInMonth = new Date(y,m,0).getDate();
+  for(let d=1; d<=daysInMonth; d++){
+    const k=keyFor(y,m,d);
+    const obj = JSON.parse(localStorage.getItem(k) || '{}');
+    if(obj.meal) tp++;
+    ts += (obj.exp||0);
+    // recompute hours for safety
+    if(obj.t){ let minutes=0; for(const p of obj.t){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null && b!=null && b>a) minutes+=b-a; } th += minutes/60; }
+  }
+  $('#totPasti').textContent = tp;
+  $('#totSpese').textContent = ts.toFixed(2);
+  $('#totOre').textContent = th.toFixed(2);
+}
+
+$('#clearMonth').addEventListener('click', ()=>{
+  if(!confirm('Sicuro di svuotare i dati del mese corrente?')) return;
+  const y=parseInt(yearInp.value), m=parseInt(monthSel.value);
+  const daysInMonth = new Date(y,m,0).getDate();
+  for(let d=1; d<=daysInMonth; d++){ localStorage.removeItem(keyFor(y,m,d)); }
+  render();
+});
+
+$('#exportCsv').addEventListener('click', ()=>{
+  const y=parseInt(yearInp.value), m=parseInt(monthSel.value);
+  const daysInMonth = new Date(y,m,0).getDate();
+  let csv = 'Data,Giorno,Pasto,Spese,Note,Ore\n';
+  for(let d=1; d<=daysInMonth; d++){
+    const date = new Date(y,m-1,d);
+    const wk = date.toLocaleDateString('it-IT',{weekday:'short'});
+    const k=keyFor(y,m,d);
+    const o = JSON.parse(localStorage.getItem(k) || '{}');
+    let minutes=0; if(o.t){ for(const p of o.t){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null && b!=null && b>a) minutes+=b-a; } }
+    const ore = (minutes/60).toFixed(2);
+    const meal = o.meal?'SI':'NO';
+    const spese = (o.exp||0).toString().replace(',', '.');
+    const note = (o.note||'').replace(/\n/g,' ').replace(/,/g,';');
+    csv += `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y},${wk},${meal},${spese},${note},${ore}\n`;
+  }
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `foglio_ore_${y}_${m}.csv`;
+  a.click();
+});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js');
+  });
+}
+
+loadHeader();
+render();
+</script>
+</body>
+</html>
