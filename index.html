@@ -71,6 +71,7 @@
   <div class="inline" style="justify-content:space-between; align-items:center">
     <small class="mut">Suggerimento: premi “Aggiungi a schermata Home” per installare l’app.</small>
     <div class="inline">
+      <button id="exportPdf" type="button" style="background:#f59e0b">Esporta PDF</button>
       <button id="exportCsv" type="button">Esporta CSV</button>
       <button id="clearMonth" type="button" style="background:#ef4444">Svuota mese</button>
     </div>
@@ -198,7 +199,47 @@ document.getElementById('exportCsv').addEventListener('click', (ev)=>{
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`foglio_ore_${y}_${m}.csv`; a.click();
 });
+function makePdf(lines){
+  const header='%PDF-1.3\n';
+  let body='';
+  const offsets=[];
+  const addObj=str=>{ offsets.push(header.length+body.length); body+=str+'\n'; };
+  addObj('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj');
+  addObj('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj');
+  let content='BT\n/F1 12 Tf\n';
+  let yPos=800;
+  for(const line of lines){
+    const txt=line.replace(/([\\()])/g,'\\$1');
+    content+=`1 0 0 1 50 ${yPos} Tm (${txt}) Tj\n`;
+    yPos-=14;
+  }
+  content+='ET';
+  addObj(`3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj`);
+  addObj(`4 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`);
+  addObj('5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj');
+  const xrefOffset=header.length+body.length;
+  let xref='xref\n0 6\n0000000000 65535 f \n';
+  offsets.forEach(off=>{ xref+=String(off).padStart(10,'0')+' 00000 n \n'; });
+  return header+body+xref+`trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+}
 
+document.getElementById('exportPdf').addEventListener('click', (ev)=>{
+  ev.preventDefault();
+  const y=parseInt(yearInp.value)||now.getFullYear();
+  const m=parseInt(monthSel.value)||(now.getMonth()+1);
+  const dim=new Date(y,m,0).getDate();
+  const lines=['Data Giorno Pasti Spese Note Ore'];
+  for(let d=1; d<=dim; d++){
+    const date=new Date(y,m-1,d);
+    const wk=date.toLocaleDateString('it-IT',{weekday:'short'});
+    let o={}; try{o=JSON.parse(localStorage.getItem(k(y,m,d))||'{}');}catch(e){}
+    const hrs=o.t ? hoursFromPairs(o.t) : '0.00';
+    lines.push(`${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y} ${wk} ${parseInt(o.meals||0)} ${(o.exp||0)} ${(o.note||'').replace(/\n/g,' ')} ${hrs}`);
+  }
+  const pdf=makePdf(lines);
+  const blob=new Blob([pdf],{type:'application/pdf'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`foglio_ore_${y}_${m}.pdf`; a.click();
+});
 hdrLoad();
 render();
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js') ); }
