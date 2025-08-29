@@ -171,8 +171,8 @@ nome.addEventListener('input', hdrSave);
 // time helpers with auto-mask
 function parseTime(s){
   if(!s) return null;
-  const clean = s.replace(/[^\d:]/g,'');
-  const m = /^(\d{1,2}):?(\d{2})$/.exec(clean);
+  const clean = s.replace(/[^\d:\.]/g,'');
+  const m = /^(\d{1,2})[:\.]?(\d{2})$/.exec(clean);
   if(!m) return null;
   const h = +m[1], mi = +m[2];
   if(h>23 || mi>59) return null;
@@ -181,7 +181,8 @@ function parseTime(s){
 function formatToHHMM(s){
   let v = (s||'').replace(/\D/g,'');
   if(v.length>4) v = v.slice(0,4);
-  if(v.length>=3) return v.slice(0,2).padStart(2,'0')+':'+v.slice(2).padEnd(2,'0').slice(0,2);
+  if(v.length>=3) return v.slice(0,2).padStart(2,'0')+':'+v.slice(2,4);
+  if(v.length>=2) return v.slice(0,2)+':';
   if(v.length>=1) return v;
   return '';
 }
@@ -190,7 +191,7 @@ function applyTimeMask(e){
   const after = formatToHHMM(before);
   if(before !== after) e.target.value = after;
 }
-function hoursFromPairs(pairs){ let min=0; for(const p of pairs){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } return (min/60).toFixed(2); }
+function hoursFromPairs(pairs){ let min=0; for(const p of pairs){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } return min/60; }
 
 function mdField(id, label, type='text', extra=''){
   return \`
@@ -248,7 +249,7 @@ function buildDay(y,m,d){
 
   function save(){
     const pairs = Array.from({length:6}).map((_,i)=>[inputsIn[i].value, inputsOut[i].value]);
-    od.textContent = hoursFromPairs(pairs);
+    od.textContent = hoursFromPairs(pairs).toFixed(2);
     const data = { t:pairs, meals: parseInt(meals.value||'0'), exp: parseFloat((exp.value||'').replace(',','.'))||0, note: note.value };
     localStorage.setItem(id, JSON.stringify(data));
     totals();
@@ -276,8 +277,8 @@ function totals(){
     let o={}; try{o=JSON.parse(localStorage.getItem(\`d:\${y}-\${String(m).padStart(2,'0')}-\${String(d).padStart(2,'0')}\`)||'{}');}catch(e){}
     mealsSum += parseInt(o.meals||0);
     expSum += (o.exp||0);
-    if(o.t){ hours += parseFloat((function(p){ let min=0; for(const q of p){ const a=parseTime(q[0]), b=parseTime(q[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } return (min/60).toFixed(2); })(o.t)); }
-  }
+    if(o.t){ hours += hoursFromPairs(o.t); }
+ }
   $('#totPasti').textContent = mealsSum;
   $('#totSpese').textContent = expSum.toFixed(2);
   $('#totOre').textContent = hours.toFixed(2);
@@ -305,8 +306,7 @@ $('#exportCsv').addEventListener('click', (ev)=>{
   for(let d=1; d<=dim; d++){
     const wk = new Date(y,m-1,d).toLocaleDateString('it-IT',{weekday:'short'});
     let o={}; try{o=JSON.parse(localStorage.getItem(\`d:\${y}-\${String(m).padStart(2,'0')}-\${String(d).padStart(2,'0')}\`)||'{}');}catch(e){}
-    let min=0; if(o.t){ for(const p of o.t){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } }
-    const ore=(min/60).toFixed(2);
+    const ore = o.t ? hoursFromPairs(o.t).toFixed(2) : '0.00';
     csv += \`\${String(d).padStart(2,'0')}/\${String(m).padStart(2,'0')}/\${y},\${wk},\${parseInt(o.meals||0)},\${(o.exp||0)},\${(o.note||'').replace(/\n/g,' ').replace(/,/g,';')},\${ore}\n\`;
   }
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
@@ -346,8 +346,7 @@ $('#exportPdf').addEventListener('click', (ev)=>{
   for(let d=1; d<=dim; d++){
     const wk=new Date(y,m-1,d).toLocaleDateString('it-IT',{weekday:'short'});
     let o={}; try{o=JSON.parse(localStorage.getItem(\`d:\${y}-\${String(m).padStart(2,'0')}-\${String(d).padStart(2,'0')}\`)||'{}');}catch(e){}
-    let min=0; if(o.t){ for(const p of o.t){ const a=parseTime(p[0]), b=parseTime(p[1]); if(a!=null&&b!=null&&b>a) min+=b-a; } }
-    const ore=(min/60).toFixed(2);
+    const ore = o.t ? hoursFromPairs(o.t).toFixed(2) : '0.00';
     lines.push(\`\${String(d).padStart(2,'0')}/\${String(m).padStart(2,'0')}/\${y} \${wk} \${parseInt(o.meals||0)} \${(o.exp||0)} \${(o.note||'').replace(/\n/g,' ')} \${ore}\`);
   }
   const pdf=makePdf(lines);
